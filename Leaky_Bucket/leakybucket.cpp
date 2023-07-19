@@ -4,17 +4,21 @@
 #include<math.h>
 #include<string.h>
 
-int current_display = 0;
+int state =0; // Remaining < o/p rate state = 0 else state 1
+int accepted[5]; //array of accepted packets
+int acceptedPackets = 0; 
+int current_display = 0; // front page 0 menu 1 flowchart...
 int drawPacket = 0;
 int size = 0,packSize=0;
-int packets[5];
+int acceptSize=0,rejectSize=0;
+int packets[5]; // input packet array
 
-int bucketSize=0,numberPackets=0,oprate=0;
-bool packetIsVisible[5];
+int bucketSize=0,numberPackets=0,oprate=0,Loprate;
+
 
 void delay(){
 	int i,j=0;
-	for(i=0;i<=1000000000/2;i++){
+	for(i=0;i<=1000000000/5;i++){
 		j++;
 	}
 }
@@ -99,7 +103,6 @@ void drawPackets(int numberOfPackets)
 	int i=0;
 	for(i=0;i<numberOfPackets;i++)
 	{
-		glPushMatrix();
 		glColor3f(1.0,1.0,0.0);
 		glBegin(GL_QUADS);
 			glVertex2i(250+size,800);
@@ -112,8 +115,9 @@ void drawPackets(int numberOfPackets)
 		glColor3f(0.0,0.0,0.0);
 		borders(250+size,800,325+size,800,325+size,875,250+size,875);
 		size+=75;
-		packetIsVisible[i]=true;
+		
 		glFlush(); 
+		delay();
 		delay();
 	}
 	packSize = size;
@@ -128,16 +132,121 @@ void drawLine(float x1, float y1, float x2, float y2)
     glFlush();
 }
 
-//For Accept reject
-void myAnimate(int packets[],int numberOfPackets)
+
+void addLayer(int x1,int y1,int x2,int y2,int x3,int y3,int x4,int y4,int remainingb,int remainingp)
 {
-	int i;
+	//int slope;
+	//slope = (600-400)/(650-250);
+	char temp[100]="";
+	glBegin(GL_POLYGON);
+	glVertex2i(x1,y1);
+	glVertex2i(x2,y2);
+	glVertex2i(x3,y3);
+	glVertex2i(x4,y4);
+	glEnd();
+	sprintf(temp,"%d",remainingp);
+	glColor3f(0.0,1.0,1.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+	strcpy(temp,"");
+	delay();
+	sprintf(temp,"%d",remainingb);
+	glColor3f(0.0,0.0,0.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+	strcpy(temp,"");
+	glFlush();
+}
+
+
+//Remove layer from the bucket
+void delLayer(int x1,int y1,int x2,int y2,int x3,int y3,int x4,int y4,int remainingb,int remainingp)
+{
+	//int slope;
+	//slope = (600-400)/(650-250);
+	char temp[100]="";
+	glColor3f(1.0,1.0,1.0);
+	glBegin(GL_POLYGON);
+	glVertex2i(x1,y1);
+	glVertex2i(x2,y2);
+	glVertex2i(x3,y3);
+	glVertex2i(x4,y4);
+	glEnd();
+	sprintf(temp,"%d",remainingp);
+	glColor3f(0.0,1.0,1.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+	strcpy(temp,"");
+	delay();
+	sprintf(temp,"%d",remainingb);
+	glColor3f(0.0,0.0,0.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+	strcpy(temp,"");
+	glFlush();
+}
+
+int dropPacketY =240;
+
+//Draw Outgoing packet
+void myPacket(){
+	glBegin(GL_QUADS);
+	glVertex2i(475,dropPacketY);
+	glVertex2i(525,dropPacketY);
+	glVertex2i(525,dropPacketY-50);
+	glVertex2i(475,dropPacketY-50);
+	glEnd();
+	glFlush();
+}
+
+// packet output animation
+void packetOut(int value){
 	char temp[100];
-	int acceptSize=0,rejectSize=0;
-	packSize-=75;
-	for(i=0;i<numberOfPackets;i++)
-	{
-		glColor3f(1.0,1.0,0.0);
+	while(dropPacketY>0){
+	glColor3f(0.0,1.0,1.0);
+	myPacket();
+	if(value==1){
+	sprintf(temp,"%d",oprate);
+	glColor3f(0.0,0.0,0.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,dropPacketY-25);
+	glFlush();
+	strcpy(temp,"");
+	}
+	else if(value==0){
+	sprintf(temp,"%d",Loprate);
+	glColor3f(0.0,0.0,0.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,490,dropPacketY-25);
+	glFlush();
+	strcpy(temp,"");
+	}
+	delay();
+	glColor3f(0.0,0.0,1.0);
+	myPacket();
+	dropPacketY-=20;
+	}
+	dropPacketY=245;
+}
+
+
+//The main animation after pressing N;
+int leakyBucket(int packets[],int numberOfPackets)
+{
+	int i=0;
+	int addedY=0;
+	int remaining,finalY;
+	int bucketFill = 390/bucketSize;
+	remaining = 0;
+	packSize=0;
+	int incrementY =0;
+	char temp[100];
+	glBegin(GL_LINES);
+	glColor3f(1.0,0.0,0.0);
+	glLineWidth(3);
+	glVertex2f(351,642);
+	glVertex2f(649,642);
+	glEnd();
+	glFlush();
+	do{
+		if(packets[i]<=bucketSize)
+		{
+			if(remaining+packets[i]>bucketSize){
+				glColor3f(1.0,1.0,0.0);
 		glBegin(GL_QUADS);
 			glVertex2i(250+packSize,800);
 			glVertex2i(325+packSize,800);
@@ -150,14 +259,94 @@ void myAnimate(int packets[],int numberOfPackets)
 		drawLine(325+packSize,800,250+packSize,875);
 		glColor3f(0.0,0.0,0.0);
 		borders(250+packSize,800,325+packSize,800,325+packSize,875,250+packSize,875);
-		packSize-=75;
+		packSize+=75;
 		delay();
 		glFlush();
-		if(packets[numberOfPackets-i-1]<=bucketSize)
-		{
+		// Draw Reject packet
+				glColor3f(1.0,1.0,0.0);
+			print("REJECT",GLUT_BITMAP_TIMES_ROMAN_24,700,640);
+			drawLine(700,625,775,625);
+			printf("Packet ");
+			printf("REJECTED\n");
+			glColor3f(1.0,0.0,0.0);
+			
+		glBegin(GL_QUADS);
+			glVertex2i(700,525+rejectSize);
+			glVertex2i(775,525+rejectSize);
+			glVertex2i(775,600+rejectSize);
+			glVertex2i(700,600+rejectSize);
+		glEnd();
+		glColor3f(0.0,0.0,0.0);
+		// Reject Size is used for drawing packets in Reject Side
+		borders(700,525+rejectSize,775,525+rejectSize,775,600+rejectSize,700,600+rejectSize);
+			sprintf(temp,"%d",packets[i]);
+			glColor3f(0.0,0.0,0.0);
+			print(temp,GLUT_BITMAP_TIMES_ROMAN_24,725,563+rejectSize);
+			strcpy(temp,"");
+			rejectSize-=75; //Decrement vertically(height)
+		glFlush();
+		delay();
+
+		if(oprate > remaining){ //Condition 1: If Bucket has less than o/p rate value
+			Loprate = remaining;
+			remaining -= Loprate;
+			//Del a layer from bucket showing packet output is engaged
+			delLayer(405,finalY,595,finalY,595,finalY-Loprate*bucketFill,405,finalY-Loprate*bucketFill,remaining,remaining+Loprate);
+			//Bucket value
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+	}
+			finalY-=Loprate*bucketFill; // for layer deletion an addition
+			addedY-=Loprate*bucketFill;
+			packetOut(0); //Animate output packet
+			delay();
+		}
+			else{
+				remaining -= oprate;
+				delLayer(405,finalY,595,finalY,595,finalY-oprate*bucketFill,405,finalY-oprate*bucketFill,remaining,remaining+oprate);
+				if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+	}
+			finalY-=oprate*bucketFill;
+			addedY-=oprate*bucketFill;
+			packetOut(1);
+			delay();
+				//Del a layer corresponding to output rate
+			}
+			}
+			else{
+			glColor3f(1.0,1.0,0.0);
+		glBegin(GL_QUADS);
+			glVertex2i(250+packSize,800);
+			glVertex2i(325+packSize,800);
+			glVertex2i(325+packSize,875);
+			glVertex2i(250+packSize,875);
+		glEnd();
+		// TO show a packet is taken as input
+		glLineWidth(4.0);
+		glColor3f(1.0,0.0,0.0);
+		drawLine(250+packSize,800,325+packSize,875);
+		drawLine(325+packSize,800,250+packSize,875);
+		glColor3f(0.0,0.0,0.0);
+		borders(250+packSize,800,325+packSize,800,325+packSize,875,250+packSize,875);
+		packSize+=75;
+		delay(); // for kaat mark
+		glFlush();
+
+		//accepted
+
+		glColor3f(0.0,1.0,0.0);
+			print("ACCEPT",GLUT_BITMAP_TIMES_ROMAN_24,250,640);
+			glColor3f(0.0,1.0,0.0);
+			drawLine(250,625,325,625);
 			printf("Packet bandwidth is less than bucket capacity:  ");
 			printf("ACCEPTED\n");
 			glColor3f(0.0,1.0,0.0);
+			
 		glBegin(GL_QUADS);
 			glVertex2i(250,525+acceptSize);
 			glVertex2i(325,525+acceptSize);
@@ -166,19 +355,82 @@ void myAnimate(int packets[],int numberOfPackets)
 		glEnd();
 		glColor3f(0.0,0.0,0.0);
 		borders(250,525+acceptSize,325,525+acceptSize,325,600+acceptSize,250,600+acceptSize);
-			sprintf(temp,"%d",packets[numberOfPackets-i-1]);
+			sprintf(temp,"%d",packets[i]);
 			glColor3f(0.0,0.0,0.0);
 			print(temp,GLUT_BITMAP_TIMES_ROMAN_24,275,563+acceptSize);
 			strcpy(temp,"");
-			acceptSize-=75;
+			acceptSize-=75; // Height of the accept packets on left
 		glFlush();
 		delay();
+
+		remaining += packets[i];
+		//add a green layer on bucket showing packet is inside the bucket
+		glColor3f(0.0,1.0,1.0);
+		addLayer(405,255+addedY,595,255+addedY,595,255+addedY+packets[i]*bucketFill,405,255+addedY+packets[i]*bucketFill,remaining,remaining-packets[i]);
+		//slope1-=8;
+		//slope2+=8;
+		//slopeLeft-=8;
+		//slopeRight+=8;
+		addedY+=packets[i]*bucketFill;
+		finalY = 255+addedY;
+		delay();
+		
+		if(oprate > remaining && remaining != 0){
+			Loprate = remaining;
+			remaining -= Loprate;
+			//Del a layer from bucket showing packet output is engaged
+			delLayer(405,finalY,595,finalY,595,finalY-Loprate*bucketFill,405,finalY-Loprate*bucketFill,remaining,remaining+Loprate);
+		if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+	}
+			finalY-=Loprate*bucketFill;
+			addedY-=Loprate*bucketFill;
+			packetOut(0);
+			delay();
 		}
-		else if(packets[numberOfPackets-i-1]>bucketSize)
-		{
+			else{
+				remaining -= oprate;
+				delLayer(405,finalY,595,finalY,595,finalY-oprate*bucketFill,405,finalY-oprate*bucketFill,remaining,remaining+oprate);
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+	}
+			finalY-=oprate*bucketFill;
+			addedY-=oprate*bucketFill;
+			packetOut(1);
+			delay();
+				//Del a layer corresponding to output rate
+			}
+		}
+		}
+		// Reject
+		else{
+			glColor3f(1.0,1.0,0.0);
+		glBegin(GL_QUADS);
+			glVertex2i(250+packSize,800);
+			glVertex2i(325+packSize,800);
+			glVertex2i(325+packSize,875);
+			glVertex2i(250+packSize,875);
+		glEnd();
+		glLineWidth(4.0);
+		glColor3f(1.0,0.0,0.0);
+		drawLine(250+packSize,800,325+packSize,875);
+		drawLine(325+packSize,800,250+packSize,875);
+		glColor3f(0.0,0.0,0.0);
+		borders(250+packSize,800,325+packSize,800,325+packSize,875,250+packSize,875);
+		packSize+=75;
+		delay();
+		glFlush();
+			glColor3f(1.0,1.0,0.0);
+			print("REJECT",GLUT_BITMAP_TIMES_ROMAN_24,700,640);
+			drawLine(700,625,775,625);
 			printf("Packet ");
 			printf("REJECTED\n");
 			glColor3f(1.0,0.0,0.0);
+			
 		glBegin(GL_QUADS);
 			glVertex2i(700,525+rejectSize);
 			glVertex2i(775,525+rejectSize);
@@ -187,17 +439,87 @@ void myAnimate(int packets[],int numberOfPackets)
 		glEnd();
 		glColor3f(0.0,0.0,0.0);
 		borders(700,525+rejectSize,775,525+rejectSize,775,600+rejectSize,700,600+rejectSize);
-			sprintf(temp,"%d",packets[numberOfPackets-i-1]);
+			sprintf(temp,"%d",packets[i]);
 			glColor3f(0.0,0.0,0.0);
 			print(temp,GLUT_BITMAP_TIMES_ROMAN_24,725,563+rejectSize);
 			strcpy(temp,"");
 			rejectSize-=75;
 		glFlush();
 		delay();
-		}
 
+		if(oprate > remaining && remaining !=0){
+			Loprate = remaining;
+			remaining -= Loprate;
+			delLayer(405,finalY,598,finalY,595,finalY-Loprate*bucketFill,405,finalY-Loprate*bucketFill,remaining,remaining+Loprate);
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
 	}
+			finalY-=Loprate*bucketFill;
+			addedY = 0;
+			packetOut(0);
+			delay();
+			//Del a layer from bucket showing packet output is engaged
+		}
+		else if(remaining != 0){
+			remaining -= oprate;
+			delLayer(405,finalY,595,finalY,595,finalY-oprate*bucketFill,405,finalY-oprate*bucketFill,remaining,remaining+oprate);
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+	}
+			finalY-=oprate*bucketFill;
+			addedY-=oprate*bucketFill;
+			packetOut(1);
+			delay();
+		}
+		}
+		i++;
+	}while(i<numberOfPackets);
+	// for remaining packets inside the bucket after all packet inputs are over
+	while(remaining != 0){
+		if(oprate > remaining){
+			Loprate = remaining;
+			remaining -= Loprate;
+			delLayer(405,finalY,595,finalY,595,finalY-Loprate*bucketFill,405,finalY-Loprate*bucketFill,remaining,remaining+Loprate);
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+			}
+			finalY-=Loprate*bucketFill;
+			addedY = 0;
+			packetOut(0);
+			delay();
+			
+			//Del a layer from bucket showing packet output is engaged
+		}
+		else{
+			remaining -= oprate;
+			delLayer(405,finalY,595,finalY,595,finalY-oprate*bucketFill,405,finalY-oprate*bucketFill,remaining,remaining+oprate);
+			if(remaining == 0 ){
+			glColor3f(1.0,1.0,1.0);
+			print("00",GLUT_BITMAP_TIMES_ROMAN_24,490,300);
+			glFlush();
+			}
+			finalY-=oprate*bucketFill;
+			addedY-=oprate*bucketFill;
+			packetOut(1);
+			delay();
+			//Del the layer corresponding to the outputrate
+		}
+	}
+			glColor3f(1.0,1.0,1.0);
+			print("<The Simulation has Ended",GLUT_BITMAP_TIMES_ROMAN_24,700,350);
+			print("Restart the program for another Instance>",GLUT_BITMAP_TIMES_ROMAN_24,700,330);
+			glFlush();
+			return 9;
 }
+
+	
+
 
 void printPacketValues(int packetValue[],int numberOfPackets)
 {
@@ -307,6 +629,7 @@ int flowchart()
 	glLineWidth(5.0);
 	drawLine(490,890,490,860);
 	drawInvertedTriangle(490,860,10);
+	
 
 	drawParalellogram(410,770,550,770,585,855,435,855);
 	glColor3f(0.0,0.0,0.0);
@@ -431,8 +754,10 @@ int flowchart()
 	print("3. bkt cap: Bucket Capacity",GLUT_BITMAP_TIMES_ROMAN_24,50,230);
 	glColor3f(1.0,1.0,1.0);
 	print("4. O/p : Output",GLUT_BITMAP_TIMES_ROMAN_24,50,200);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press                            to go back to previous page >>>",GLUT_BITMAP_TIMES_ROMAN_24,330,70);
 	glColor3f(1.0,0.0,0.0);
-	print("Press Backspace to go back to previous page",GLUT_BITMAP_TIMES_ROMAN_24,390,50);
+	print(" BACKSPACE",GLUT_BITMAP_TIMES_ROMAN_24,385,70);
 	glFlush();
 
 	return 6;
@@ -442,14 +767,31 @@ int flowchart()
 //Start of the algorithm
 //Still in working no animation has started
 //Only takes input and display if maximum limit is exceeded
+// before pressing n
 int bucket()
 {
 	int i,input=0;
 	int packetSize=20;
-	printf("\t\t\t*****LEAKY BUCKET TERMINAL*****\n");
+	char temp[100];
+	printf("\t\t\t***LEAKY BUCKET TERMINAL***\n");
 	background(0,0,0,1000,1000,1000,1000,0);
 	glColor3f(0.0,0.5,0.5);
 	borders(1,1,1,999,999,999,999,1);
+	glColor3f(0.0,1.0,1.0);
+	print("LEAKY BUCKET IMPLEMENTATION:- ",GLUT_BITMAP_TIMES_ROMAN_24,20,950);
+	glColor3f(1.0,1.0,1.0);
+	print("*** Give the inputs in                       ***",GLUT_BITMAP_TIMES_ROMAN_24,20,880);
+	glColor3f(1.0,0.0,0.0);
+	print("TERMINAL",GLUT_BITMAP_TIMES_ROMAN_24,140,880);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press                            to go back to previous page >>>",GLUT_BITMAP_TIMES_ROMAN_24,20,60);
+	glColor3f(1.0,0.0,0.0);
+	print("  BACKSPACE",GLUT_BITMAP_TIMES_ROMAN_24,70,60);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press          to Exit >>>",GLUT_BITMAP_TIMES_ROMAN_24,720,60);
+	glColor3f(1.0,0.0,0.0);
+	print("     ESC",GLUT_BITMAP_TIMES_ROMAN_24,760,60);
+	glFlush();
 	printf("Bucket capacity ranges from  20 to 50 and Max number of packets is 5\n");
 	printf("Enter the capcity of the bucket: ");
 	scanf("%d",&bucketSize);
@@ -481,8 +823,37 @@ int bucket()
 		packets[i]=input;
 	}
 	drawBucket();
+	glColor3f(1.0,1.0,0.0);
+	print("<--- Bucket",GLUT_BITMAP_TIMES_ROMAN_24,615,320);
+	glColor3f(1.0,1.0,0.0);
+	print("<--- Input Packets",GLUT_BITMAP_TIMES_ROMAN_24,645,825);
 	drawPackets(numberPackets);
 	printPacketValues(packets,numberPackets);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press               to start the simulation >>>",GLUT_BITMAP_TIMES_ROMAN_24,20,100);
+	glColor3f(1.0,0.0,0.0);
+	print(" 'n'|'N'",GLUT_BITMAP_TIMES_ROMAN_24,75,100);
+	glFlush();
+	glColor3f(1.0,1.0,0.0);
+	print("<--- Output Rate",GLUT_BITMAP_TIMES_ROMAN_24,540,150);
+
+	glColor3f(0.0,1.0,1.0);
+	glBegin(GL_POLYGON);
+		glVertex2f(800,80);
+		glVertex2f(800,120);
+		glVertex2f(840,120);
+		glVertex2f(840,80);
+	glEnd();
+
+	glColor3f(1.0,1.0,1.0);
+	print("<--- Packet Bandwidth",GLUT_BITMAP_TIMES_ROMAN_24,850,100);
+	glColor3f(1.0,1.0,1.0);
+	print("The bucket Capacity = ",GLUT_BITMAP_TIMES_ROMAN_24,400,660);
+	sprintf(temp,"%d",bucketSize);
+	glColor3f(1.0,0.0,0.0);
+	print(temp,GLUT_BITMAP_TIMES_ROMAN_24,540,660);
+	glFlush();
+	strcpy(temp,"");
 	glFlush();
 	}
 	return 4;
@@ -493,29 +864,95 @@ int about()
 {
  background(0,0,0,1000,1000,1000,1000,0);
  glColor3f(0.0,1.0,0.0);
- print("ABOUT_PAGE",GLUT_BITMAP_TIMES_ROMAN_24,440,880);
+ print("****** ABOUT PAGE ******",GLUT_BITMAP_TIMES_ROMAN_24,400,900);
+ glColor3f(0.0,1.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(70,620);
+ glVertex2f(70,800);
+ glVertex2f(430,800);
+ glVertex2f(430,620);
+ glEnd();
+  glColor3f(1.0,0.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(55,590);
+ glVertex2f(55,830);
+ glVertex2f(445,830);
+ glVertex2f(445,590);
+ glEnd();
  glColor3f(1.0,1.0,1.0);
  print("Name: Shrikrishna Ganapati Hegde",GLUT_BITMAP_TIMES_ROMAN_24,100,750);
  print("USN: 4SU20CS101",GLUT_BITMAP_TIMES_ROMAN_24,100,720);
  print("3rd Year, Department of CSE",GLUT_BITMAP_TIMES_ROMAN_24,100,690);
- print("Address: Dhundasi Nagar,Sirsi,Uttar Kannada",GLUT_BITMAP_TIMES_ROMAN_24,100,660);
+ print("Address: Dhundasi Nagar, Sirsi ,Uttar Kannada",GLUT_BITMAP_TIMES_ROMAN_24,100,660);
+ glColor3f(0.0,1.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(540,620);
+ glVertex2f(540,800);
+ glVertex2f(930,800);
+ glVertex2f(930,620);
+ glEnd();
+  glColor3f(1.0,0.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(525,590);
+ glVertex2f(525,830);
+ glVertex2f(945,830);
+ glVertex2f(945,590);
+ glEnd();
  glColor3f(1.0,1.0,1.0);
  print("Name: Srujan P Jain",GLUT_BITMAP_TIMES_ROMAN_24,570,750);
  print("USN: 4SU20CS107",GLUT_BITMAP_TIMES_ROMAN_24,570,720);
  print("3rd Year, Department of CSE",GLUT_BITMAP_TIMES_ROMAN_24,570,690);
- print("Address: Prahalladh Nagar,Perla Road,Ujire,Dakshina Kannada",GLUT_BITMAP_TIMES_ROMAN_24,570,660);
+ print("Address: Prahalladh Nagar, Perla Road, Ujire, Dakshina Kannada",GLUT_BITMAP_TIMES_ROMAN_24,570,660);
+  glColor3f(0.0,1.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(70,320);
+ glVertex2f(70,500);
+ glVertex2f(430,500);
+ glVertex2f(430,320);
+ glEnd();
+  glColor3f(1.0,0.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(55,290);
+ glVertex2f(55,530);
+ glVertex2f(445,530);
+ glVertex2f(445,290);
+ glEnd();
  glColor3f(1.0,1.0,1.0);
  print("Name: Vaishnavi R",GLUT_BITMAP_TIMES_ROMAN_24,100,450);
  print("USN: 4SU20CS118",GLUT_BITMAP_TIMES_ROMAN_24,100,420);
  print("3rd Year, Department of CSE",GLUT_BITMAP_TIMES_ROMAN_24,100,390);
- print("Address:Bilagodi, Hebbarige, Sagar,Shivamogga",GLUT_BITMAP_TIMES_ROMAN_24,100,360);
+ print("Address: Bilagodi, Hebbarige, Sagar, Shivamogga",GLUT_BITMAP_TIMES_ROMAN_24,100,360);
+ glColor3f(0.0,1.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(540,320);
+ glVertex2f(540,500);
+ glVertex2f(930,500);
+ glVertex2f(930,320);
+ glEnd();
+  glColor3f(1.0,0.0,0.0);
+ glLineWidth(2);
+ glBegin(GL_LINE_LOOP);
+ glVertex2f(525,290);
+ glVertex2f(525,530);
+ glVertex2f(945,530);
+ glVertex2f(945,290);
+ glEnd();
  glColor3f(1.0,1.0,1.0);
  print("Name: Vaishnavi Vijaykumar Hegde",GLUT_BITMAP_TIMES_ROMAN_24,570,450);
  print("USN: 4SU20CS119",GLUT_BITMAP_TIMES_ROMAN_24,570,420);
  print("3rd Year, Department of CSE",GLUT_BITMAP_TIMES_ROMAN_24,570,390);
- print("Address: Guddemane,Bommanalli,Sirsi Uttara Kannada",GLUT_BITMAP_TIMES_ROMAN_24,570,360);
- glColor3f(1.0,0.0,0.0);
- print("Press Backspace to go back to previous page",GLUT_BITMAP_TIMES_ROMAN_24,360,150);
+ print("Address: Guddemane, Bommanalli, Sirsi, Uttara Kannada",GLUT_BITMAP_TIMES_ROMAN_24,570,360);
+glColor3f(1.0,1.0,1.0);
+	print("<<< Press                             to go back to previous page >>>",GLUT_BITMAP_TIMES_ROMAN_24,330,150);
+	glColor3f(1.0,0.0,0.0);
+	print(" BACKSPACE ",GLUT_BITMAP_TIMES_ROMAN_24,385,150);
  glFlush();
  return 2;
 	
@@ -529,23 +966,33 @@ int help()
 	glColor3f(0.0,0.5,0.5);
 	borders(1,1,1,999,999,999,999,1);
 	glColor3f(0.0,1.0,0.0);
-	print("HELP_PAGE",GLUT_BITMAP_TIMES_ROMAN_24,500,900);
+	print("****** HELP PAGE ******",GLUT_BITMAP_TIMES_ROMAN_24,400,920);
 	glColor3f(0.0,1.0,0.0);
-	print("Leaky Bucket Algorithm: ",GLUT_BITMAP_TIMES_ROMAN_24,50,800);
+	print("Leaky Bucket Concept: ",GLUT_BITMAP_TIMES_ROMAN_24,50,850);
 	glColor3f(1.0,1.0,1.0);
-	print("Step-1 : Initialize Bucket capacity and Output rate.",GLUT_BITMAP_TIMES_ROMAN_24,80,750);
-	print("Step-2 : Initialize the incoming packet size.",GLUT_BITMAP_TIMES_ROMAN_24,80,700);
-	print("Step-3 : Compare the incoming packet size with bucket capacity.",GLUT_BITMAP_TIMES_ROMAN_24,80,650);
-	print("*   If the incoming packet size is less than the bucket capacity,then the packet will be added to the bucket.",GLUT_BITMAP_TIMES_ROMAN_24,150,600);
-	print("*   If the incoming packet size or size of the incoming packet + packet in bucket is greater than the ",GLUT_BITMAP_TIMES_ROMAN_24,150,550);
-	print("bucket capacity, then the incoming packet will be dropped.",GLUT_BITMAP_TIMES_ROMAN_24,170,500);
-	print("Step-4 : Output the packet based on output rate.",GLUT_BITMAP_TIMES_ROMAN_24,80,450);
-	print("Step-5 : Repeat step 3 and 4 until the bucket is empty.",GLUT_BITMAP_TIMES_ROMAN_24,80,400);
+	print("The Leaky Bucket algorithm is a popular flow control machanism used in computer networks to regulate rate of data transmission. ",GLUT_BITMAP_TIMES_ROMAN_24,80,800);
+	print("It ensures that the out going data doesnot exceed a predetrmined maximum rate, preventing network congestion and maintaining ",GLUT_BITMAP_TIMES_ROMAN_24,80,750);
+    print("quality of service.",GLUT_BITMAP_TIMES_ROMAN_24,80,700);
+	glColor3f(0.0,1.0,0.0);
+	print("Leaky Bucket Algorithm: ",GLUT_BITMAP_TIMES_ROMAN_24,50,650);
+	glColor3f(1.0,1.0,1.0);
+	print("Step-1 : Initialize Bucket capacity and Output rate.",GLUT_BITMAP_TIMES_ROMAN_24,80,600);
+	print("Step-2 : Initialize the incoming packet size.",GLUT_BITMAP_TIMES_ROMAN_24,80,550);
+	print("Step-3 : Compare the incoming packet size with bucket capacity.",GLUT_BITMAP_TIMES_ROMAN_24,80,500);
+	print("*   If the incoming packet size is less than the bucket capacity,then the packet will be added to the bucket.",GLUT_BITMAP_TIMES_ROMAN_24,150,450);
+	print("*   If the incoming packet size or size of the incoming packet + packet in bucket is greater than the ",GLUT_BITMAP_TIMES_ROMAN_24,150,400);
+	print("bucket capacity, then the incoming packet will be dropped.",GLUT_BITMAP_TIMES_ROMAN_24,170,350);
+	print("Step-4 : Output the packet based on output rate.",GLUT_BITMAP_TIMES_ROMAN_24,80,300);
+	print("Step-5 : Repeat step 3 and 4 until the bucket is empty.",GLUT_BITMAP_TIMES_ROMAN_24,80,250);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press                             to go back to previous page >>>",GLUT_BITMAP_TIMES_ROMAN_24,330,150);
 	glColor3f(1.0,0.0,0.0);
-	print("Press Backspace to go back to previous page",GLUT_BITMAP_TIMES_ROMAN_24,400,150);
+	print(" BACKSPACE",GLUT_BITMAP_TIMES_ROMAN_24,385,150);
 	glFlush();
 	return 3;
+
 }
+
 
 // Menu page
 int myDisplay()
@@ -572,23 +1019,27 @@ int myDisplay()
 	glColor3f(0.0,0.0,0.0);
 	borders(430,800,430,750,530,750,530,800);
 	glColor3f(1.0,0.6,0.0);
-	square(430,900,430,850,530,850,530,900);
+	square(430,400,430,350,530,350,530,400);
 	glColor3f(0.0,0.0,0.0);
-	borders(430,900,430,850,530,850,530,900);
+	borders(430,400,430,350,530,350,530,400);
 	
 
+	glColor3f(0.0,1.0,1.0);
+	print("****** MENU PAGE ******",GLUT_BITMAP_TIMES_ROMAN_24,400,870);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press                            to go back to previous page >>>",GLUT_BITMAP_TIMES_ROMAN_24,330,150);
 	glColor3f(1.0,0.0,0.0);
-	print("Press Backspace to go back to previous page",GLUT_BITMAP_TIMES_ROMAN_24,400,150);
+	print(" BACKSPACE",GLUT_BITMAP_TIMES_ROMAN_24,385,150);
 	glColor3f(0.0,0.0,0.0);
-	print("Exit(ESC)",GLUT_BITMAP_TIMES_ROMAN_24,450,465);
+	print("Exit(ESC)",GLUT_BITMAP_TIMES_ROMAN_24,450,370);
 	glColor3f(0.0,0.0,0.0);
-	print("Help(h)",GLUT_BITMAP_TIMES_ROMAN_24,450,565);
+	print("Help(h)",GLUT_BITMAP_TIMES_ROMAN_24,450,470);
 	glColor3f(0.0,0.0,0.0);
-	print("About(a)",GLUT_BITMAP_TIMES_ROMAN_24,450,665);
+	print("About(a)",GLUT_BITMAP_TIMES_ROMAN_24,450,570);
 	glColor3f(0.0,0.0,0.0);
-	print("Flowchart(f)",GLUT_BITMAP_TIMES_ROMAN_24,450,765);
+	print("Flowchart(f)",GLUT_BITMAP_TIMES_ROMAN_24,450,670);
 	glColor3f(0.0,0.0,0.0);
-	print("Start(s)",GLUT_BITMAP_TIMES_ROMAN_24,450,865);
+	print("Start(s)",GLUT_BITMAP_TIMES_ROMAN_24,450,770);
 	glFlush();
 	return 1;
 }
@@ -610,7 +1061,7 @@ void display()
 	borders(1,1,1,999,999,999,999,1);
 	//To display Texts
 	glColor3f(1.0,0.4,0.0);
-	print("SDM INSTITUE OF TECHNOLOGY",GLUT_BITMAP_TIMES_ROMAN_24,390,920);
+	print("SDM INSTITUE OF TECHNOLOGY,UJIRE 574240",GLUT_BITMAP_TIMES_ROMAN_24,350,920);
 	glColor3f(1.0,0.4,0.0);
 	print("DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING",GLUT_BITMAP_TIMES_ROMAN_24,315,860);
 	glColor3f(1.0,0.4,0.0);
@@ -634,13 +1085,17 @@ void display()
 	glColor3f(1.0,0.4,0.0);
 	print("Mr. Arjun K",GLUT_BITMAP_TIMES_ROMAN_24,750,420);
 	glColor3f(1.0,0.4,0.0);
-	print("Asst. Proffessor",GLUT_BITMAP_TIMES_ROMAN_24,750,390);
+	print("Asst. Professor",GLUT_BITMAP_TIMES_ROMAN_24,750,390);
 	glColor3f(1.0,0.4,0.0);
 	print("Department of CSE",GLUT_BITMAP_TIMES_ROMAN_24,750,360);
-	glColor3f(0.0,1.0,0.0);
-	print("Press Enter to Start",GLUT_BITMAP_HELVETICA_18,450,120);
+	glColor3f(1.0,1.0,1.0);
+	print("<<< Press                 for                page >>>",GLUT_BITMAP_TIMES_ROMAN_24,400,120);
 	glColor3f(1.0,0.0,0.0);
-	print("Press ESC to Exit",GLUT_BITMAP_HELVETICA_18,450,80);
+	print("  ENTER         MENU",GLUT_BITMAP_TIMES_ROMAN_24,450,120);
+	glColor3f(1.0,1.0,0.0);
+	print("<<< Press            to Exit >>>",GLUT_BITMAP_TIMES_ROMAN_24,430,80);
+	glColor3f(1.0,0.0,0.0);
+	print("   ESC",GLUT_BITMAP_TIMES_ROMAN_24,480,80);
 	//End of Texts
 	glFlush();
 }
@@ -656,11 +1111,15 @@ void keyboard(unsigned char key,int x,int y)
 		current_display=myDisplay(); // Enter Key
 		}
 		break;
-	case 8 : if(current_display == 1){
+	case 8 : if(current_display == 1){ // Backspace
 				display();
 			 }
 			 else if(current_display == 2 || current_display==3 || current_display==4 || current_display==6){
 				current_display= myDisplay();
+			 }
+			 else if(current_display == 9){
+				 packSize=0;acceptSize=0;rejectSize=0;bucketSize=0;size=0;
+				 current_display = myDisplay();
 			 }
 		break;
 	case 'A':
@@ -689,9 +1148,11 @@ void keyboard(unsigned char key,int x,int y)
 		break;
 	case 'N':
 	case 'n':
-			myAnimate(packets,numberPackets);
+			if(current_display==4)
+			current_display = leakyBucket(packets,numberPackets);
+		
 			break;
-	case 27: if(current_display==1 || current_display==0){
+	case 27: if(current_display==1 || current_display==0 || current_display == 9 ){
 		exit(0);
 			 }
 	}
